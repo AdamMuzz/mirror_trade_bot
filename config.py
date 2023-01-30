@@ -1,7 +1,10 @@
-#	address of wallet to track
-#	address of wallet to use for executing trades
-target_addr = 'WALLET ADDR YOU WANT TO TRACK'
-user_addr = 'YOUR WALLET ADDR'
+USER_ADDR = 'INSERT HERE'	# address of wallet to use for executing trades
+TARGET_ADDR = 'INSERT HERE'	# address of wallet to track
 
-#	BscScan API keys
-BscScan_api_key = 'YOUR API KEY'
+PRIV_KEY = 'INSERT HERE'	# Your private wallet key
+BSCSCAN_API_KEY = 'INSERT HERE'	# Your BscScan API key
+
+PAN_ADDR = '0x10ED43C718714eb63d5aA57B78B54704E256024E'		# pancakeswap V2 router contract address
+WBNB_ADDR = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c'	# wrapped BNB contract address
+
+MAX_NUMBER = (2**64 - 1) * 10**18	# 2^64 eth	...not gonna ever buy this much of something
