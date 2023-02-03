@@ -1,0 +1,8 @@
+# Mac OS files
+.DS_Store
+
+# python
+venv/
+
+# config
+config.py
