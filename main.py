@@ -77,5 +77,5 @@ if __name__ == '__main__':
 
 		#else: no new trades so do nothing
 	
-		# wait 1s so dont hit API limit
-		sleep(1)
+		# wait 1.25s so dont hit API limit
+		sleep(1.25)
