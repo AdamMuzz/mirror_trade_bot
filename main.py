@@ -3,6 +3,12 @@ from helpers.pancake_helper import create_pancake, buy_token, sell_token, confir
 from helpers.scan_helper import scan_for_trades
 from config import USER_ADDR, TARGET_ADDR, AMOUNTS
 from time import sleep
+from datetime import datetime as dt
+
+# helper function to format date info for logging trade activity
+def get_time():
+	return dt.now().strftime("%m/%d %H:%M:%S")
+
 
 
 if __name__ == '__main__':
@@ -22,6 +28,8 @@ if __name__ == '__main__':
 		pan_contract = create_pancake(w3)
 	except:
 		print('unable to create pancake router contract')
+
+
 
 	################
 	# driver logic #
@@ -44,37 +52,37 @@ if __name__ == '__main__':
 			# update current hash to this trade
 			cur_hash = trade['hash']
 
-			# grab token addr & balance
-			token_addr = w3.toChecksumAddress(trade['contractAddress'])
-			balance = get_token_balance(w3, token_addr, USER_ADDR)
-			# grab destination (if to == target --> they are receiving tokens --> buy)
-			destination = w3.toChecksumAddress(trade['to'])
+			token_addr = w3.toChecksumAddress(trade['contractAddress'])		# grab token addr
+			balance = get_token_balance(w3, token_addr, USER_ADDR)			# grab cur balance
+			destination = w3.toChecksumAddress(trade['to'])					# grab destination (if to == target --> they are receiving tokens --> buy)
 
 			# if TARGET is buying & self has not bought
 			if destination == TARGET_ADDR and balance == 0:
-				print(f"buying {trade['tokenSymbol']}")
+				print(f"{get_time()} buying {trade['tokenSymbol']}")
 
 				# try and buy 0.15 --> 0.10 --> 0.05 beans of token
 				for i in range(3):
 					amount = AMOUNTS[i]
+					
 					buy_hash = buy_token(token_addr, amount, w3, pan_contract)
 					# wait for txn to get processed, 1 is success, 0 is failure
 					status = w3.eth.wait_for_transaction_receipt(buy_hash)['status']
-					if status:												# if successful, break out
+					if status:
+						print(f"{get_time()} buy confirmation: {buy_hash}")				# if successful, confirm token then break out
+						confirm_hash = confirm_token(token_addr, w3)
+						print(f"{get_time()} confirm confirmation: {confirm_hash}")
 						break
 					else:
-						print(f"failed to buy @ {amount}")					# else, lower buy amount
-				print(f"buy confirmation: {buy_hash}")
-
-				confirm_hash = confirm_token(token_addr, w3)				# confirm token
-				print(f"confirm confirmation: {confirm_hash}")
+						print(f"{get_time()} failed to buy @ {amount}")					# else, lower buy amount & try again
+			# if TARGET is buying and self has bought
+				#########
+				# TO DO #
+				#########
 			# if TARGET is selling & self owns
-			elif balance > 0:
-				print(f"selling {trade['tokenSymbol']}")
+			elif destination != TARGET_ADDR and balance > 0:
+				print(f"{get_time()} selling {trade['tokenSymbol']}")
 				sell_hash = sell_token(token_addr, w3, pan_contract)
-				print(f"sell confirmation: {sell_hash}")
-
-		#else: no new trades so do nothing
+				print(f"{get_time()} sell confirmation: {sell_hash}")
 	
 		# wait 1.25s so dont hit API limit
 		sleep(1.25)
