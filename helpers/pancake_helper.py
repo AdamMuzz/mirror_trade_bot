@@ -1,4 +1,4 @@
-from config import PAN_ADDR, WBNB_ADDR, USER_ADDR, PRIV_KEY, MAX_NUMBER
+from config import PAN_ADDR, WBNB_ADDR, USER_ADDR, PRIV_KEY, MAX_NUMBER, GAS_LIMIT, GAS_PRICE
 from helpers.abi_helper import PAN_ROUTER_ABI, ERC20_ABI
 from web3 import Web3
 import time
@@ -21,8 +21,8 @@ def buy_token(tkn_addr: str, amount: float, w3: Web3, pan_contract) -> str:
 	).buildTransaction({
 		'from': USER_ADDR,									# wallet to fund trade
 		'value': w3.toWei(amount, 'ether'),					# amount to buy
-		'gas': 250000,										# gas limit
-		'gasPrice': w3.toWei('7','gwei'),					# gas price
+		'gas': GAS_LIMIT,									# gas limit
+		'gasPrice': w3.toWei(GAS_PRICE,'gwei'),				# gas price
 		'nonce': w3.eth.get_transaction_count(USER_ADDR)	# metamask nonce
 	})
 
@@ -48,7 +48,7 @@ def confirm_token(tkn_addr: str, w3: Web3) -> str:
 		# build approve transaction
 		approve_txn = token_contract.functions.approve(PAN_ADDR, MAX_NUMBER).buildTransaction({
 			'from': USER_ADDR,
-			'gasPrice': w3.toWei('7', 'gwei'),
+			'gasPrice': w3.toWei(GAS_PRICE, 'gwei'),
 			'nonce': w3.eth.get_transaction_count(USER_ADDR)
 		})
 
@@ -75,8 +75,8 @@ def sell_token(tkn_addr, w3: Web3, pan_contract) -> str:
 		(int(time.time()) + 1000)							# deadline
 	).buildTransaction({
 		'from': USER_ADDR,									# contract sending addr
-		'gas': 250000,										# gas limit
-		'gasPrice': w3.toWei('7', 'gwei'),					# gas price
+		'gas': GAS_LIMIT,									# gas limit
+		'gasPrice': w3.toWei(GAS_PRICE, 'gwei'),			# gas price
 		'nonce': w3.eth.get_transaction_count(USER_ADDR)	# MetaMask nonce
 	})
 
