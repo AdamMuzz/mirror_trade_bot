@@ -10,4 +10,6 @@ WBNB_ADDR = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c'	# wrapped BNB contract 
 GAS_LIMIT = 500000	# gas config
 GAS_PRICE = '7'
 
+AMOUNTS = (0.15, 0.10, 0.05)	# custom set of amounts to attempt to purchase at
+
 MAX_NUMBER = (2**64 - 1) * 10**18	# 2^64 eth	...not gonna ever buy this much of something

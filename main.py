@@ -1,7 +1,7 @@
 from helpers.web3_helper import create_web3, get_token_balance
 from helpers.pancake_helper import create_pancake, buy_token, sell_token, confirm_token
 from helpers.scan_helper import scan_for_trades
-from config import USER_ADDR, TARGET_ADDR
+from config import USER_ADDR, TARGET_ADDR, AMOUNTS
 from time import sleep
 
 
@@ -55,8 +55,8 @@ if __name__ == '__main__':
 				print(f"buying {trade['tokenSymbol']}")
 
 				# try and buy 0.15 --> 0.10 --> 0.05 beans of token
-				amount = 0.15
-				for _ in range(3):
+				for i in range(3):
+					amount = AMOUNTS[i]
 					buy_hash = buy_token(token_addr, amount, w3, pan_contract)
 					# wait for txn to get processed, 1 is success, 0 is failure
 					status = w3.eth.wait_for_transaction_receipt(buy_hash)['status']
@@ -64,7 +64,6 @@ if __name__ == '__main__':
 						break
 					else:
 						print(f"failed to buy @ {amount}")					# else, lower buy amount
-						amount -= 0.05
 				print(f"buy confirmation: {buy_hash}")
 
 				confirm_hash = confirm_token(token_addr, w3)				# confirm token
