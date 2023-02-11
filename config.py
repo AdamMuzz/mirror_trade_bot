@@ -7,8 +7,8 @@ BSCSCAN_API_KEY = 'INSERT HERE'	# Your BscScan API key
 PAN_ADDR = '0x10ED43C718714eb63d5aA57B78B54704E256024E'		# pancakeswap V2 router contract address
 WBNB_ADDR = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c'	# wrapped BNB contract address
 
-GAS_LIMIT = 500000	# gas config
-GAS_PRICE = '7'
+GAS_BUFFER = 100000		# gas config
+GAS_PRICE = '6'
 
 AMOUNTS = (0.15, 0.10, 0.05)	# custom set of amounts to attempt to purchase at
 
