@@ -74,10 +74,21 @@ if __name__ == '__main__':
 						break
 					else:
 						print(f"{get_time()} failed to buy @ {amount}")					# else, lower buy amount & try again
+			
 			# if TARGET is buying and self has bought
-				#########
-				# TO DO #
-				#########
+			elif destination == TARGET_ADDR and balance > 0:
+				# try and buy 0.05 beans of token
+				amount = AMOUNTS[2]
+
+				buy_hash = buy_token(token_addr, amount, w3, pan_contract)
+
+				status = w3.eth.wait_for_transaction_receipt(buy_hash)['status']
+				if status:
+					print(f"{get_time()} buy confirmation: {buy_hash}")
+					# no need to confirm b/c alr did that in initial buy
+				else:
+					print(f"{get_time()} failed to double down buy")
+
 			# if TARGET is selling & self owns
 			elif destination != TARGET_ADDR and balance > 0:
 				print(f"{get_time()} selling {trade['tokenSymbol']}")
