@@ -53,12 +53,13 @@ if __name__ == '__main__':
 			cur_hash = trade['hash']
 
 			token_addr = w3.toChecksumAddress(trade['contractAddress'])		# grab token addr
+			token_symbol = trade['tokenSymbol']								# grab token symbol
 			balance = get_token_balance(w3, token_addr, USER_ADDR)			# grab cur balance
 			destination = w3.toChecksumAddress(trade['to'])					# grab destination (if to == target --> they are receiving tokens --> buy)
 
 			# if TARGET is buying & self has not bought
 			if destination == TARGET_ADDR and balance == 0:
-				print(f"{get_time()} buying {trade['tokenSymbol']}")
+				print(f"{get_time()} buying {token_symbol}")
 
 				# try and buy 0.15 --> 0.10 --> 0.05 beans of token
 				for i in range(3):
@@ -74,26 +75,30 @@ if __name__ == '__main__':
 						break
 					else:
 						print(f"{get_time()} failed to buy @ {amount}")					# else, lower buy amount & try again
-			
 			# if TARGET is buying and self has bought
 			elif destination == TARGET_ADDR and balance > 0:
-				# try and buy 0.05 beans of token
+				print(f"{get_time()} doubling down {token_symbol}")
+
+				# try and buy 0.05 beans
 				amount = AMOUNTS[2]
-
+					
 				buy_hash = buy_token(token_addr, amount, w3, pan_contract)
-
 				status = w3.eth.wait_for_transaction_receipt(buy_hash)['status']
 				if status:
 					print(f"{get_time()} buy confirmation: {buy_hash}")
-					# no need to confirm b/c alr did that in initial buy
+					# no need to confirm b/c alr done via initial buy
 				else:
-					print(f"{get_time()} failed to double down buy")
-
+					print(f"{get_time()} failed to double down")
 			# if TARGET is selling & self owns
 			elif destination != TARGET_ADDR and balance > 0:
-				print(f"{get_time()} selling {trade['tokenSymbol']}")
+				print(f"{get_time()} selling {token_symbol}")
 				sell_hash = sell_token(token_addr, w3, pan_contract)
-				print(f"{get_time()} sell confirmation: {sell_hash}")
+
+				status = w3.eth.wait_for_transaction_receipt(sell_hash)['status']
+				if status:
+					print(f"{get_time()} sell confirmation: {sell_hash}")
+				else:
+					print(f"{get_time()} failed to sell")
 	
-		# wait 1.25s so dont hit API limit
-		sleep(1.25)
+		# wait 1s so dont hit API limit
+		sleep(1.5)

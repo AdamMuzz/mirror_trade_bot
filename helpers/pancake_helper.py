@@ -1,4 +1,4 @@
-from config import PAN_ADDR, WBNB_ADDR, USER_ADDR, PRIV_KEY, MAX_NUMBER, GAS_BUFFER, GAS_PRICE
+from config import PAN_ADDR, WBNB_ADDR, USER_ADDR, PRIV_KEY, MAX_NUMBER, GAS_BUFFER, GAS_PRICE, GAS_LIMIT
 from helpers.abi_helper import PAN_ROUTER_ABI, ERC20_ABI
 from web3 import Web3
 import time
@@ -26,9 +26,13 @@ def buy_token(tkn_addr: str, amount: float, w3: Web3, pan_contract) -> str:
 		'nonce': w3.eth.get_transaction_count(USER_ADDR)	# metamask nonce
 	})
 
-	# get estimated gas cost
-	EST_GAS = w3.eth.estimate_gas(buy_txn) + GAS_BUFFER
-	buy_txn.update({'gas': EST_GAS})
+	# get estimated gas cost of transaction
+	try:
+		EST_GAS = w3.eth.estimate_gas(buy_txn) + GAS_BUFFER
+		buy_txn.update({'gas': EST_GAS})
+	# if fails, default to flat rate
+	except:
+		buy_txn.update({'gas': GAS_LIMIT})
 
 	# sign and send transaction
 	signed_txn = w3.eth.account.sign_transaction(buy_txn, private_key=PRIV_KEY)
@@ -71,7 +75,7 @@ def sell_token(tkn_addr, w3: Web3, pan_contract) -> str:
 	amount = tkn_contract.functions.balanceOf(USER_ADDR).call()
 
 	# define transaction
-	sell_txn = pan_contract.functions.swapExactTokensForETH(
+	sell_txn = pan_contract.functions.swapExactTokensForETHSupportingFeeOnTransferTokens(
 		amount,												# amount of token to sell
 		0,													# slippage (0 == inf)
 		[tkn_addr, WBNB_ADDR],								# trade from token --> BNB
@@ -84,9 +88,13 @@ def sell_token(tkn_addr, w3: Web3, pan_contract) -> str:
 		'nonce': w3.eth.get_transaction_count(USER_ADDR)	# MetaMask nonce
 	})
 
-	# get estimated gas cost
-	EST_GAS = w3.eth.estimate_gas(sell_txn) + GAS_BUFFER
-	sell_txn.update({'gas': EST_GAS})
+	# get estimated gas cost of transaction
+	try:
+		EST_GAS = w3.eth.estimate_gas(sell_txn) + GAS_BUFFER
+		sell_txn.update({'gas': EST_GAS})
+	# if fails, default to flat rate
+	except:
+		sell_txn.update({'gas': GAS_LIMIT})
 
 	# sign and send
 	signed_txn = w3.eth.account.sign_transaction(sell_txn, private_key=PRIV_KEY)

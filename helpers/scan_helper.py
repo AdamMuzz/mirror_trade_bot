@@ -5,6 +5,8 @@ from config import BSCSCAN_API_KEY, TARGET_ADDR
 
 # scans current block for trade activity from target address
 def scan_for_trades(w3: Web3) -> list[dict]:
+	response = []
+
 	# get latest block num
 	start = get_latest(w3) - 5
 
@@ -21,6 +23,9 @@ def scan_for_trades(w3: Web3) -> list[dict]:
 	f'&apikey={BSCSCAN_API_KEY}'\
 
 	# parse json response
-	response = get(url).json()['result']
+	try:
+		response = get(url).json()['result']
+	except:
+		print("failed to fetch trades")
 
 	return response
