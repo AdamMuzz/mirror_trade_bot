@@ -1,31 +1,36 @@
 from web3 import Web3
 from requests import get
-from helpers.web3_helper import get_latest
-from config import BSCSCAN_API_KEY, TARGET_ADDR
+import time
 
-# scans current block for trade activity from target address
-def scan_for_trades(w3: Web3) -> list[dict]:
-	response = []
+from config import TARGET_ADDR
 
-	# get latest block num
-	start = get_latest(w3) - 5
-
-	# check for any trades on current block
-	url = 'https://api.bscscan.com/api'\
-	'?module=account'\
-	'&action=tokentx'\
-	f'&address={TARGET_ADDR}'\
-	'&page=1'\
-	'&offset=5'\
-	f'&startblock={start}'\
-	'&endblock=999999999'\
-	'&sort=asc'\
-	f'&apikey={BSCSCAN_API_KEY}'\
-
-	# parse json response
+# processes new pending txn events emitted to grab txn details
+#	returns 2, token_addr, [path] 	if target addr buying
+#	returns 1, token_addr, [path] 	if selling
+#	returns 0, None, None			if not target addr
+def fetch_event_details(event, w3: Web3, router):
 	try:
-		response = get(url).json()['result']
+		hash = w3.toHex(event)					# get txn hash
+		details = w3.eth.get_transaction(hash) 	# get txn via its hash
 	except:
-		print("failed to fetch trades")
+		return (0, None, None)
 
-	return response
+	# if txn from target addr
+	if details['from'] == TARGET_ADDR:
+		# decode function data
+		print("target")
+		try:
+			input = router.decode_function_input(details['input'])
+			func = str(input[0])
+			path = input[1]['path']
+
+			# if buying
+			if "swapExactETH" in func:
+				return (2, path[-1], path)
+			# if selling
+			elif "swapExactTokens" in func:
+				return (1, path[0], path)
+		except:
+			pass # was not a pancake router function
+
+	return (0, None, None)

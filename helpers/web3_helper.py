@@ -10,18 +10,21 @@ def create_web3() -> Web3:
 	return w3
 
 
+
 # grab latest block number from Binance chain
 def get_latest(w3: Web3) -> int:
 	return w3.eth.get_block_number()
 
 
+
 # return bnb balance of given addr
-def get_bnb_balance(w3: Web3, addr: str) -> int:
-	return w3.eth.get_balance(addr)
+def get_bnb_balance(addr: str, w3: Web3) -> int:
+	return Web3.fromWei(w3.eth.get_balance(addr), 'ether')
+
 
 
 # return balance of given token @ given addr
-def get_token_balance(w3: Web3, token_addr: str, wallet_addr: str) -> int:
+def get_token_balance(wallet_addr: str, token_addr: str, w3: Web3) -> int:
 	# create contract obj that can interact w/ token's smart contract
 	token_contract = w3.eth.contract(address=token_addr, abi=ERC20_ABI)
 

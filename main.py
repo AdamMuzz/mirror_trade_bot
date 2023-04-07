@@ -1,104 +1,100 @@
-from helpers.web3_helper import create_web3, get_token_balance
-from helpers.pancake_helper import create_pancake, buy_token, sell_token, confirm_token
-from helpers.scan_helper import scan_for_trades
-from config import USER_ADDR, TARGET_ADDR, AMOUNTS
-from time import sleep
+import time
 from datetime import datetime as dt
 
-# helper function to format date info for logging trade activity
+from helpers.web3_helper import create_web3, get_bnb_balance, get_token_balance
+from helpers.scan_helper import fetch_event_details
+from helpers.pancake_helper import create_pancake, buy_token, confirm_token, sell_token
+from config import USER_ADDR, AMOUNTS
+
 def get_time():
 	return dt.now().strftime("%m/%d %H:%M:%S")
 
 
 
-if __name__ == '__main__':
-	#########
-	# setup #
-	#########
+# handles txn events
+def handle_event(event):
+	res, token_addr, path = fetch_event_details(event, w3, pan_router)		# grab details
 
-	# create w3 obj for Binance chain
+	# if txn not from target wallet do nothing
+	if res == 0:
+		return
+
+	balance = get_token_balance(USER_ADDR, token_addr, w3)				# get current token balance
+
+	# if buying
+	if res == 2:
+		if get_bnb_balance(USER_ADDR, w3) < 0.2:							# maintain some BNB reserves
+			return
+	
+		# if target is buying and self has not bought
+		if balance == 0:
+			print(f"{get_time()}  BUY: {token_addr}")
+			# try and buy HIGH --> MID --> LOW beans of token
+			for i in range(3):
+				amount = AMOUNTS[i]
+					
+				buy_hash = buy_token(amount, path, w3, pan_router)
+				status = w3.eth.wait_for_transaction_receipt(buy_hash)['status']	# wait for txn to get processed, 1 is success, 0 is failure
+				if status:
+					print(f"    buy confirmation: {buy_hash}")
+					confirm_hash = confirm_token(path[-1], w3)						# if successful, confirm token then break out
+					print(f"    confirm confirmation: {confirm_hash}")
+					break
+				else:
+					print(f"    failed to buy @ {amount}")							# else, lower buy amount & try again
+		# if target is buying and self alr owns
+		elif balance > 0:
+			print(f"{get_time()}  DOUBLE DOWN: {token_addr}")
+
+			# try and buy LOW beans
+			amount = AMOUNTS[-1]
+					
+			buy_hash = buy_token(amount, path, w3, pan_router)
+			status = w3.eth.wait_for_transaction_receipt(buy_hash)['status']
+			if status:
+				print(f"    buy confirmation: {buy_hash}")							# no need to confirm b/c alr done via initial buy
+			else:
+				print(f"    failed to double down")
+	# if selling
+	elif res == 1 and balance > 0:
+		print(f"{get_time()}  SELL: {token_addr}")
+		sell_hash = sell_token(balance, path, w3, pan_router)
+
+		status = w3.eth.wait_for_transaction_receipt(sell_hash)['status']
+		if status:
+			print(f"    sell confirmation: {sell_hash}")
+		else:
+			print(f"    failed to sell")
+
+
+
+# repeatedly poll for new txns
+#	for each new event, call handle_event() on it
+def event_loop(event_filter, poll_interval):
+	while True:
+		for event in event_filter.get_new_entries():
+			handle_event(event)
+		time.sleep(poll_interval)
+
+
+
+# set poll filter to be pending txns
+# set poll interval to be 0.4s
+def main():
+	block_filter = w3.eth.filter('pending')
+	event_loop(block_filter, 1)
+
+
+
+if __name__ == '__main__':
+	# create w3 obj for Binance chain, PancakeSwap router, PancakeSwap factory
 	try:
 		w3 = create_web3()
+		pan_router, pan_factory = create_pancake(w3)
 		print(f'connected to binance chain: {w3.isConnected()}')
 	except:
-		print('unable to connect to binance chain')
+		print('unable to connect to setup chain and pancakeswap')
+		exit()
 
-	# create pancake router contract obj
-	try:
-		pan_contract = create_pancake(w3)
-	except:
-		print('unable to create pancake router contract')
-
-
-
-	################
-	# driver logic #
-	################
-
-	prev_hash = None
-	cur_hash = None
-
-	# bot runs 24/7
-	while True:
-		# update prev to be current from last run
-		prev_hash = cur_hash
-	
-		# grab most recent trade from trades from most recent block
-		trades = scan_for_trades(w3)
-		trade = trades[0] if trades else False
-
-		# if a new trade is present
-		if trade and trade['hash'] != prev_hash:
-			# update current hash to this trade
-			cur_hash = trade['hash']
-
-			token_addr = w3.toChecksumAddress(trade['contractAddress'])		# grab token addr
-			token_symbol = trade['tokenSymbol']								# grab token symbol
-			balance = get_token_balance(w3, token_addr, USER_ADDR)			# grab cur balance
-			destination = w3.toChecksumAddress(trade['to'])					# grab destination (if to == target --> they are receiving tokens --> buy)
-
-			# if TARGET is buying & self has not bought
-			if destination == TARGET_ADDR and balance == 0:
-				print(f"{get_time()} buying {token_symbol}")
-
-				# try and buy 0.15 --> 0.10 --> 0.05 beans of token
-				for i in range(3):
-					amount = AMOUNTS[i]
-					
-					buy_hash = buy_token(token_addr, amount, w3, pan_contract)
-					# wait for txn to get processed, 1 is success, 0 is failure
-					status = w3.eth.wait_for_transaction_receipt(buy_hash)['status']
-					if status:
-						print(f"{get_time()} buy confirmation: {buy_hash}")				# if successful, confirm token then break out
-						confirm_hash = confirm_token(token_addr, w3)
-						print(f"{get_time()} confirm confirmation: {confirm_hash}")
-						break
-					else:
-						print(f"{get_time()} failed to buy @ {amount}")					# else, lower buy amount & try again
-			# if TARGET is buying and self has bought
-			elif destination == TARGET_ADDR and balance > 0:
-				print(f"{get_time()} doubling down {token_symbol}")
-
-				# try and buy 0.05 beans
-				amount = AMOUNTS[2]
-					
-				buy_hash = buy_token(token_addr, amount, w3, pan_contract)
-				status = w3.eth.wait_for_transaction_receipt(buy_hash)['status']
-				if status:
-					print(f"{get_time()} buy confirmation: {buy_hash}")
-					# no need to confirm b/c alr done via initial buy
-				else:
-					print(f"{get_time()} failed to double down")
-			# if TARGET is selling & self owns
-			elif destination != TARGET_ADDR and balance > 0:
-				print(f"{get_time()} selling {token_symbol}")
-				sell_hash = sell_token(token_addr, w3, pan_contract)
-
-				status = w3.eth.wait_for_transaction_receipt(sell_hash)['status']
-				if status:
-					print(f"{get_time()} sell confirmation: {sell_hash}")
-				else:
-					print(f"{get_time()} failed to sell")
-	
-		# wait 1s so dont hit API limit
-		sleep(1.5)
+	# run main logic for bot
+	main()

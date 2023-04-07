@@ -1,21 +1,24 @@
-from config import PAN_ADDR, WBNB_ADDR, USER_ADDR, PRIV_KEY, MAX_NUMBER, GAS_BUFFER, GAS_PRICE, GAS_LIMIT
-from helpers.abi_helper import PAN_ROUTER_ABI, ERC20_ABI
+from config import PAN_ROUTER_ADDR, PAN_FACTORY_ADDR, USER_ADDR, PRIV_KEY, MAX_NUMBER, GAS_BUFFER, GAS_PRICE, GAS_LIMIT
+from helpers.abi_helper import PAN_ROUTER_ABI, PAN_FACTORY_ABI,ERC20_ABI
 from web3 import Web3
 import time
 
-# simple method to create a pancake router v2 contract obj
+# simple method to create pancake router & factory v2 contract objs
 def create_pancake(w3: Web3):
 	# create contract w/ pancake router v2 methods
-	return w3.eth.contract(address=PAN_ADDR, abi=PAN_ROUTER_ABI)
+	router = w3.eth.contract(address=PAN_ROUTER_ADDR, abi=PAN_ROUTER_ABI)
+	factory = w3.eth.contract(address=PAN_FACTORY_ADDR, abi=PAN_FACTORY_ABI)
+
+	return router, factory
 
 
 
 # buys AMOUNT of specified token TKN_ADDR
-def buy_token(tkn_addr: str, amount: float, w3: Web3, pan_contract) -> str:
+def buy_token(amount: float, path: list[str], w3: Web3, router) -> str:
 	# define transaction
-	buy_txn = pan_contract.functions.swapExactETHForTokens(
+	buy_txn = router.functions.swapExactETHForTokensSupportingFeeOnTransferTokens(
 		0,													# slippage (0 == inf)
-		[WBNB_ADDR,tkn_addr],								# trade from BNB --> token
+		path,												# trade from BNB --> token
 		USER_ADDR,											# wallet to send tokens to
 		(int(time.time()) + 1000)							# deadline
 	).buildTransaction({
@@ -44,17 +47,14 @@ def buy_token(tkn_addr: str, amount: float, w3: Web3, pan_contract) -> str:
 
 # confirms the token @ TKN_ADDR s.t. pancake swap may sell it
 def confirm_token(tkn_addr: str, w3: Web3) -> str:
-	# if token alr confirmed --> return true
-	txn_hash = True
-
-	# define token contract
-	token_contract = w3.eth.contract(address=tkn_addr, abi=ERC20_ABI)
+	txn_hash = True														# if token alr confirmed --> return true
+	token_contract = w3.eth.contract(address=tkn_addr, abi=ERC20_ABI)	# define token contract
 
 	# check if needs approval
-	if token_contract.functions.allowance(USER_ADDR, PAN_ADDR).call() == 0:
+	if token_contract.functions.allowance(USER_ADDR, PAN_ROUTER_ADDR).call() == 0:
 
 		# build approve transaction
-		approve_txn = token_contract.functions.approve(PAN_ADDR, MAX_NUMBER).buildTransaction({
+		approve_txn = token_contract.functions.approve(PAN_ROUTER_ADDR, MAX_NUMBER).buildTransaction({
 			'from': USER_ADDR,
 			'gasPrice': w3.toWei(GAS_PRICE, 'gwei'),
 			'nonce': w3.eth.get_transaction_count(USER_ADDR)
@@ -69,16 +69,12 @@ def confirm_token(tkn_addr: str, w3: Web3) -> str:
 
 
 # sells all tokens @ TKN_ADDR
-def sell_token(tkn_addr, w3: Web3, pan_contract) -> str:
-	# get amount owned
-	tkn_contract = w3.eth.contract(address=tkn_addr, abi=ERC20_ABI)
-	amount = tkn_contract.functions.balanceOf(USER_ADDR).call()
-
+def sell_token(amount, path, w3: Web3, router) -> str:
 	# define transaction
-	sell_txn = pan_contract.functions.swapExactTokensForETHSupportingFeeOnTransferTokens(
+	sell_txn = router.functions.swapExactTokensForETHSupportingFeeOnTransferTokens(
 		amount,												# amount of token to sell
 		0,													# slippage (0 == inf)
-		[tkn_addr, WBNB_ADDR],								# trade from token --> BNB
+		path,												# trade from token --> BNB
 		USER_ADDR,											# wallet to send BNB to
 		(int(time.time()) + 1000)							# deadline
 	).buildTransaction({
